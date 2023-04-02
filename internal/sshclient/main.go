@@ -89,11 +89,10 @@ func (sc *SshClient) SshConn(host string) {
         if err != nil {
             log.Fatal(err)
         }
-        po := parsePsOutput(string(output))
-        for _, proc := range(po.Procs) {
-            log.Infof("%+v\n", proc) 
+        pm := NewProcMap(string(output))
+        for hash := range(pm) {
+            log.Infof("%+v\n", pm[hash]) 
         }
-
     }
 }
 
