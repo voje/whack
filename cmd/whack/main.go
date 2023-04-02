@@ -4,8 +4,7 @@ import (
 	"os"
 
 	log "github.com/sirupsen/logrus"
-
-	"github.com/voje/whack/internal/whack"
+	"github.com/voje/whack/internal/sshclient"
 
 	"github.com/urfave/cli/v2"
 )
@@ -13,7 +12,10 @@ import (
 func main() {
     app := &cli.App{
         Name:  "whack",
-        Usage: "Whack some illegal shells",
+        Usage: `Whack some illegal processes
+        Descripiton: "This application connects to remote machines via ssh 
+        and list their running processes. It keeps track of existing processes 
+        and alerts on newly spawned processes.`,
         Action: run,
     }
 
@@ -25,7 +27,9 @@ func main() {
 func run(*cli.Context) error {
     log.Info("Starting Whack")
 
-    whack.SshConn()
+    sc := sshclient.NewSshClient("/home/kristjan/.ssh/config_vagrant")
+
+    sc.SshConn("wraith")
 
     return nil
 }
