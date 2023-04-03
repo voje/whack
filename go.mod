@@ -1,6 +1,6 @@
 module github.com/voje/whack
 
-go 1.19
+go 1.18
 
 require github.com/urfave/cli/v2 v2.10.3
 
