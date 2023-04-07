@@ -38,15 +38,18 @@ func run(ctx *cli.Context) error {
 
     sshConfigFile := sshclient.NewSshConfigFile("/home/kristjan/.ssh/config_vagrant")
 
-    for _, host := range(strings.Split(ctx.String("hosts"), ",")) {
-        h := hosts.NewHost(host, sshConfigFile)
+    pool := hosts.NewPool(2)
 
-        psOutput, err := h.Ps()
+    for _, host := range(strings.Split(ctx.String("hosts"), ",")) {
+        h, err := hosts.NewHost(host, sshConfigFile)
         if err != nil {
             log.Error(err)
+            continue
         }
-        log.Infof("[%s] >> %+v\n", h.Host, psOutput.ToString())
+        pool.AddHost(h)
     }
+
+    pool.Scan()
 
     return nil
 }

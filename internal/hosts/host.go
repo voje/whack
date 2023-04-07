@@ -13,25 +13,30 @@ type Host struct {
     ProcMap commands.ProcMap
 }
 
-func NewHost (host string, configFile *ssh_config.Config) *Host {
+func NewHost (host string, configFile *ssh_config.Config) (*Host, error) {
     log.Info("Init host: " + host) 
-    return &Host {
+    sshcli, err := sshclient.NewSshClient(host, configFile)
+    if err != nil {
+        return nil, err
+    }
+    h := &Host {
         Host: host,
-        SshClient: sshclient.NewSshClient(host, configFile),
+        SshClient: sshcli,
         ProcMap: make(commands.ProcMap),
     }
+    return h, nil
 }
 
 // UpdateProcs updates the list of Host processes and returns 
 // a list of newly spawned processes
-func (h *Host) UpdateProcs(procs commands.ProcMap) (commands .ProcMap) {
+func (h *Host) UpdateProcs(procs *commands.ProcMap) (commands .ProcMap) {
     newProcs := make(commands.ProcMap)
-    for hash := range procs {
+    for hash := range *procs {
         if _, ok := h.ProcMap[hash]; !ok {
-            newProcs[hash] = procs[hash]
+            newProcs[hash] = (*procs)[hash]
         }
     }
-    h.ProcMap = procs
+    h.ProcMap = *procs
     return newProcs
 }
 
@@ -47,5 +52,15 @@ func (h *Host) Ps() (*commands.ProcMap, error) {
     }
 
     return &procMap, nil
+}
+
+func (h *Host) Scan() error {
+    procMap, err := h.Ps()
+    if err != nil {
+        return err
+    }
+    diff := h.UpdateProcs(procMap)
+    log.Infof("[%s] %d new procs:\n%s\n", h.Host, len(diff), diff.ToString())
+    return nil
 }
 

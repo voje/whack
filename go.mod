@@ -2,7 +2,10 @@ module github.com/voje/whack
 
 go 1.18
 
-require github.com/urfave/cli/v2 v2.10.3
+require (
+	github.com/go-errors/errors v1.4.2
+	github.com/urfave/cli/v2 v2.10.3
+)
 
 require golang.org/x/sys v0.0.0-20210615035016-665e8c7367d1 // indirect
 

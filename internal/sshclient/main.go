@@ -6,9 +6,9 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/go-errors/errors"
 	"github.com/kevinburke/ssh_config"
 
-	log "github.com/sirupsen/logrus"
 	"golang.org/x/crypto/ssh"
 )
 
@@ -28,24 +28,24 @@ func  NewSshConfigFile(filePath string) *ssh_config.Config {
     return configFile
 }
 
-func NewSshClient(host string, configFile *ssh_config.Config) *SshClient {
+func NewSshClient(host string, configFile *ssh_config.Config) (*SshClient, error) {
     sc := SshClient{
         Host: host,
         ConfigFile: configFile,
     }
     if _, err := (sc.ConfigFile.Get(host, "HostName")); err != nil {
-        log.Error("Host not found in ssh-config: " + host)
+        return nil, errors.New("Host not found in ssh-config: " + host)
     }
 
     identityFile, _ := sc.ConfigFile.Get(host, "IdentityFile")
     key, err := ioutil.ReadFile(identityFile)
     if err != nil {
-        log.Fatal(err)
+        return nil, err
     }
 
     signer, err := ssh.ParsePrivateKey(key)
     if err != nil {
-        log.Fatal(err)
+        return nil, err
     }
 
     user, _ := sc.ConfigFile.Get(host, "User")
@@ -55,7 +55,7 @@ func NewSshClient(host string, configFile *ssh_config.Config) *SshClient {
         HostKeyCallback: ssh.InsecureIgnoreHostKey(),
     }
     sc.ClientConfig = clientConfig
-    return &sc
+    return &sc, nil
 }
 
 func (sc* SshClient) SendCmd(cmd string) ([]byte, error) {
